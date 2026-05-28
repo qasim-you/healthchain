@@ -1,16 +1,14 @@
 "use client";
 
-import { useState, useEffect, useRef, Suspense } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import PageLayout from "@/components/layout/PageLayout";
 import { useWeb3Context } from "@/contexts/Web3Context";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { uploadFileToIPFS } from "@/utils/ipfs";
 import { Send, Hash, MessageCircle, Search, ShieldCheck, Mic } from "lucide-react";
 
-// Inner component that uses useSearchParams — must be wrapped in <Suspense>
-function ChatDashboardInner() {
+export default function ChatClient() {
     const { contract, account, role } = useWeb3Context();
     const { toast } = useToast();
 
@@ -90,7 +88,6 @@ function ChatDashboardInner() {
         fetchContacts();
     }, [contract, role]);
 
-    // Listen for new messages
     useEffect(() => {
         if (!contract || !account) return;
 
@@ -121,7 +118,6 @@ function ChatDashboardInner() {
         fetchMessages(addr);
     };
 
-    // useSearchParams is safely inside this component which is wrapped in <Suspense>
     const searchParams = useSearchParams();
     useEffect(() => {
         const partner = searchParams?.get?.("partner");
@@ -148,7 +144,12 @@ function ChatDashboardInner() {
             return (
                 <div className="space-y-2">
                     <p className="font-semibold text-sm text-foreground">Document</p>
-                    <a href={payload.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-slate-100 border border-slate-200 text-slate-900 text-sm hover:bg-slate-200 transition-colors">
+                    <a
+                        href={payload.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-slate-100 border border-slate-200 text-slate-900 text-sm hover:bg-slate-200 transition-colors"
+                    >
                         <span className="font-medium truncate">{payload.name}</span>
                         <span className="text-xs text-slate-500">Open</span>
                     </a>
@@ -304,8 +305,7 @@ function ChatDashboardInner() {
     const activeContactDetails = contacts.find(c => c.wallet.toLowerCase() === activePartner.toLowerCase());
 
     return (
-        <PageLayout title="Encrypted Direct Messages">
-            <div className="flex h-[calc(100vh-140px)] gap-6">
+        <div className="flex h-[calc(100vh-140px)] gap-6">
 
             {/* Sidebar: Contacts List */}
             <div className="w-80 bg-card border border-border rounded-3xl p-6 flex flex-col shadow-2xl relative overflow-hidden shrink-0">
@@ -470,21 +470,5 @@ function ChatDashboardInner() {
                 )}
             </div>
         </div>
-    </PageLayout>
-    );
-}
-
-// Page default export — wraps the inner component in Suspense as required by Next.js
-export default function ChatDashboard() {
-    return (
-        <Suspense fallback={
-            <PageLayout title="Encrypted Direct Messages">
-                <div className="flex h-[calc(100vh-140px)] items-center justify-center text-sm text-muted-foreground">
-                    Loading chat...
-                </div>
-            </PageLayout>
-        }>
-            <ChatDashboardInner />
-        </Suspense>
     );
 }
