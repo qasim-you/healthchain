@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { X, Send, Loader2, Sparkles, Mic, Volume2 } from "lucide-react";
 
 const HealthBotIcon = () => (
@@ -19,6 +20,8 @@ const HealthBotIcon = () => (
 );
 
 export default function Chatbot() {
+  const pathname = usePathname();
+  if (pathname && pathname.startsWith("/chat")) return null;
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
     {

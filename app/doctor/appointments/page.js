@@ -108,7 +108,7 @@ export default function DoctorAppointments() {
                                             {appt.isCompleted ? (
                                                 <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-none font-semibold">Completed</Badge>
                                             ) : (
-                                                <Button size="sm" onClick={() => handleComplete(appt.id)} className="bg-primary hover:bg-primary/90 text-foreground rounded-lg w-full">
+                                                <Button size="sm" onClick={() => handleComplete(appt.id)} className="bg-primary hover:bg-primary/90 text-white rounded-lg w-full">
                                                     <CalendarCheck className="w-4 h-4 mr-2" /> Mark Done
                                                 </Button>
                                             )}

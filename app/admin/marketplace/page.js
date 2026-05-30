@@ -99,12 +99,12 @@ export default function AdminMarketplace() {
                 </div>
 
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                    <DialogTrigger asChild>
-                        <Button className="bg-primary hover:bg-primary/90 text-foreground rounded-xl shadow-lg shadow-primary/25 h-11 px-6">
+                    <DialogTrigger className="" asChild>
+                        <Button className="bg-primary hover:bg-primary/90 text-white rounded-xl shadow-lg shadow-primary/25 h-11 px-6">
                             <Plus className="w-5 h-5 mr-2" /> Add New Medicine
                         </Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-[600px] bg-card border-border text-foreground">
+                    <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto bg-card border-border text-foreground h-auto ">
                         <DialogHeader>
                             <DialogTitle className="text-2xl font-bold">Add Medicine</DialogTitle>
                         </DialogHeader>
@@ -167,7 +167,7 @@ export default function AdminMarketplace() {
                                 </div>
                             </div>
                             <div className="col-span-1 sm:col-span-2 mt-4">
-                                <Button disabled={isAdding} className="w-full h-12 text-lg font-semibold bg-primary hover:bg-primary/90 rounded-xl shadow-lg">
+                                <Button type="submit" disabled={isAdding} className="w-full h-12 text-lg font-semibold bg-primary hover:bg-primary/90 rounded-xl shadow-lg">
                                     {isAdding ? "Processing..." : "Submit to Blockchain"}
                                 </Button>
                             </div>

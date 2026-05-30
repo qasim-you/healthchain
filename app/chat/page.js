@@ -7,7 +7,7 @@ import { useWeb3Context } from "@/contexts/Web3Context";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { uploadFileToIPFS } from "@/utils/ipfs";
-import { Send, Hash, MessageCircle, Search, ShieldCheck, Mic } from "lucide-react";
+import { Send, Hash, MessageCircle, Search, ShieldCheck, Mic, FileText } from "lucide-react";
 
 // Inner component that uses useSearchParams — must be wrapped in <Suspense>
 function ChatDashboardInner() {
@@ -427,7 +427,7 @@ function ChatDashboardInner() {
                                         className="w-14 h-14 rounded-full bg-slate-100 border border-border text-slate-700 flex items-center justify-center hover:bg-slate-200 transition-colors"
                                         title="Attach document"
                                     >
-                                        <Hash className="w-5 h-5" />
+                                        <FileText className="w-5 h-5" />
                                     </button>
 
                                     <button
@@ -440,7 +440,7 @@ function ChatDashboardInner() {
                                     </button>
 
                                     <Button type="submit" disabled={sending || isUploadingFile} className="w-14 h-14 rounded-full bg-teal-500 hover:bg-teal-400 text-white shrink-0 shadow-[0_0_20px_-5px_rgba(20,184,166,0.5)] transition-all transform hover:scale-105 active:scale-95">
-                                        {sending ? <span className="animate-spin border-2 border-white/30 border-t-white rounded-full w-6 h-6"></span> : <Send className="w-5 h-5 ml-1" />}
+                                        {sending ? <span className="animate-spin border-2 border-white/30 border-t-white rounded-full w-6 h-6"></span> : <Send className="w-5 h-5 " />}
                                     </Button>
                                 </div>
 

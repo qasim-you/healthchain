@@ -135,7 +135,7 @@ export default function Marketplace() {
                                         <Button
                                             onClick={() => handleBuy(med.id, priceEther, med.discount)}
                                             disabled={isOutOfStock || buyingProcess === med.id || role !== "patient"}
-                                            className="w-full h-12 bg-primary hover:bg-primary/90 text-foreground rounded-xl shadow-lg relative overflow-hidden group">
+                                            className="w-full h-12 bg-primary hover:bg-primary/90 text-white rounded-xl shadow-lg relative overflow-hidden group">
                                             <ShoppingCart className="w-4 h-4 mr-2" />
                                             {buyingProcess === med.id ? "Processing..." : isOutOfStock ? "Unavailable" : "Buy Medicine"}
                                             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out z-0"></div>

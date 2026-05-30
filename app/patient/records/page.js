@@ -84,7 +84,7 @@ export default function PatientRecords() {
                 <section>
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="text-xl font-bold text-foreground flex items-center gap-2"><FileText className="text-primary" /> Consultations & Diagnoses</h3>
-                        <button onClick={handleDownloadReport} className="bg-primary hover:bg-primary/90 text-foreground px-4 py-2 rounded-lg text-sm font-semibold transition-colors shadow-lg">Download Report</button>
+                        <button onClick={handleDownloadReport} className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors shadow-lg">Download Report</button>
                     </div>
 
                     <div className="space-y-4 relative">

@@ -142,7 +142,7 @@ export default function FindDoctor() {
                                 </div>
                             </div>
 
-                            <Button onClick={() => setSelectedDoctor(doc)} className="w-full mt-auto bg-primary hover:bg-primary/90 text-foreground rounded-xl shadow-lg relative z-10">
+                            <Button onClick={() => setSelectedDoctor(doc)} className="w-full mt-auto bg-primary hover:bg-primary/90 text-white rounded-xl shadow-lg relative z-10">
                                 Book Consultation
                             </Button>
                         </div>

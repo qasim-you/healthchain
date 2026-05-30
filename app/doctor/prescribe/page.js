@@ -128,7 +128,7 @@ export default function PrescribeMedicine() {
                                         <Button
                                             onClick={() => setSelectedMed(med)}
                                             disabled={isOutOfStock}
-                                            className="w-full h-11 bg-amber-600 hover:bg-amber-500 text-foreground rounded-xl shadow-[0_0_20px_-5px_var(--tw-shadow-color)] shadow-amber-600/30">
+                                            className="w-full h-11 bg-amber-600 hover:bg-amber-500 text-white rounded-xl shadow-[0_0_20px_-5px_var(--tw-shadow-color)] shadow-amber-600/30">
                                             <FilePlus className="w-4 h-4 mr-2" />
                                             Assign RX
                                         </Button>
