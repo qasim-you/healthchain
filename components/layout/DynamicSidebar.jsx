@@ -6,7 +6,7 @@ import { useWeb3Context } from "@/contexts/Web3Context";
 import {
     LayoutDashboard, Pill, Users, Stethoscope,
     CalendarCheck, ClipboardList, MessageSquare,
-    LogOut, Hexagon, HeartPlus, Wallet
+    LogOut, Hexagon, HeartPlus, Wallet, ShieldCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {

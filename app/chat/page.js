@@ -7,7 +7,7 @@ import { useWeb3Context } from "@/contexts/Web3Context";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { uploadFileToIPFS } from "@/utils/ipfs";
-import { Send, Hash, MessageCircle, Search, ShieldCheck, Mic, FileText } from "lucide-react";
+import { Send, MessageCircle, Search, ShieldCheck, Mic, FileText } from "lucide-react";
 
 // Inner component that uses useSearchParams — must be wrapped in <Suspense>
 function ChatDashboardInner() {
@@ -53,6 +53,17 @@ function ChatDashboardInner() {
 
     const [contacts, setContacts] = useState([]);
     const [searchQuery, setSearchQuery] = useState("");
+    // Use ref so the MessageSent listener always has the latest contacts (avoids stale closure)
+    const contactsRef = useRef([]);
+    const activePartnerRef = useRef("");
+
+    useEffect(() => {
+        contactsRef.current = contacts;
+    }, [contacts]);
+
+    useEffect(() => {
+        activePartnerRef.current = activePartner;
+    }, [activePartner]);
 
     useEffect(() => {
         if (!contract || !role) return;
@@ -82,6 +93,17 @@ function ChatDashboardInner() {
                         }
                     }
                     setContacts(pts);
+                } else if (role === "admin") {
+                    // Admin can chat with verified doctors
+                    try {
+                        const docs = await contract.getAllDoctors();
+                        setContacts(docs.filter(d => d.isVerified).map(d => ({
+                            wallet: d.wallet,
+                            name: `Dr. ${d.name}`,
+                            desc: d.specialization,
+                            image: d.profileImageURI
+                        })));
+                    } catch (_) {}
                 }
             } catch (err) {
                 console.error("Failed to load contacts:", err);
@@ -90,23 +112,25 @@ function ChatDashboardInner() {
         fetchContacts();
     }, [contract, role]);
 
-    // Listen for new messages
+    // Listen for new messages — use refs to avoid stale closures
     useEffect(() => {
         if (!contract || !account) return;
 
         const onMessageSent = (sender, receiver) => {
-            if (receiver.toLowerCase() === account.toLowerCase()) {
-                const contact = contacts.find(c => c.wallet.toLowerCase() === sender.toLowerCase());
-                const senderName = contact ? contact.name : `${sender.slice(0, 6)}...`;
+            if (receiver.toLowerCase() !== account.toLowerCase()) return;
 
-                toast({
-                    title: "New Message",
-                    description: `You have a new secure message from ${senderName}.`,
-                });
+            const currentContacts = contactsRef.current;
+            const contact = currentContacts.find(c => c.wallet.toLowerCase() === sender.toLowerCase());
+            const senderName = contact ? contact.name : `${sender.slice(0, 6)}...`;
 
-                if (activePartner && sender.toLowerCase() === activePartner.toLowerCase()) {
-                    fetchMessages(activePartner);
-                }
+            toast({
+                title: "💬 New Message",
+                description: `New secure message from ${senderName}.`,
+            });
+
+            const currentPartner = activePartnerRef.current;
+            if (currentPartner && sender.toLowerCase() === currentPartner.toLowerCase()) {
+                fetchMessages(currentPartner);
             }
         };
 
@@ -114,7 +138,8 @@ function ChatDashboardInner() {
         return () => {
             contract.off("MessageSent", onMessageSent);
         };
-    }, [contract, account, activePartner, contacts, toast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [contract, account]);
 
     const handleSelectContact = (addr) => {
         setPartnerAddr(addr);
