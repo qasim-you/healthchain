@@ -5,10 +5,12 @@ import { useRouter } from "next/navigation";
 import { useWeb3Context } from "@/contexts/Web3Context";
 import { Bell, MessageSquare, X, ChevronRight } from "lucide-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { useToast } from "@/hooks/use-toast";
 
 export default function DynamicHeader({ title = "Dashboard" }) {
     const { role, contract, account } = useWeb3Context();
     const router = useRouter();
+    const { toast } = useToast();
 
     const [notifications, setNotifications] = useState([]);
     const [showDropdown, setShowDropdown] = useState(false);
@@ -25,33 +27,138 @@ export default function DynamicHeader({ title = "Dashboard" }) {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    // Listen for new blockchain messages
+    // Listen for new blockchain events (Messages & Appointments)
     useEffect(() => {
         if (!contract || !account) return;
 
+        // 1. Message listener
         const onMessageSent = (sender, receiver) => {
             try {
                 if (!receiver || receiver.toLowerCase() !== account?.toLowerCase()) return;
                 const label = `${sender.slice(0, 6)}...${sender.slice(-4)}`;
                 const newNotif = {
                     id: Date.now(),
+                    type: "message",
+                    title: "New Message",
+                    description: `From: ${label}`,
                     senderFull: sender,
                     senderLabel: label,
                     time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
                     read: false,
                 };
                 setNotifications((prev) => [newNotif, ...prev].slice(0, 10)); // max 10
-                setShowDropdown(true);
+                
+                toast({
+                    title: "💬 New Secure Message",
+                    description: `You have received a secure message from ${label}.`,
+                });
             } catch (err) {
                 console.error("Header notification handler error:", err);
             }
         };
 
+        // 2. Appointment Booked listener
+        const onAppointmentBooked = (appointmentId, patient, doctor) => {
+            try {
+                if (!patient || !doctor) return;
+                
+                const isPatient = patient.toLowerCase() === account?.toLowerCase();
+                const isDoctor = doctor.toLowerCase() === account?.toLowerCase();
+
+                if (isPatient || isDoctor) {
+                    const label = isPatient 
+                        ? `Dr. ${doctor.slice(0, 6)}...${doctor.slice(-4)}`
+                        : `Patient ${patient.slice(0, 6)}...${patient.slice(-4)}`;
+
+                    const desc = isPatient
+                        ? `Your consultation with ${label} is secured on the blockchain.`
+                        : `${label} has scheduled a new consultation with you.`;
+
+                    toast({
+                        title: "📅 Appointment Booked",
+                        description: desc,
+                    });
+
+                    const newNotif = {
+                        id: Date.now(),
+                        senderFull: isPatient ? doctor : patient,
+                        senderLabel: label.slice(0, 12),
+                        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+                        read: false,
+                    };
+                    setNotifications((prev) => [newNotif, ...prev].slice(0, 10));
+                }
+            } catch (err) {
+                console.error("Appointment Booked notification error:", err);
+            }
+        };
+
+        // 3. Appointment Completed listener
+        const onAppointmentCompleted = async (appointmentId) => {
+            try {
+                const appt = await contract.appointments(appointmentId);
+                const isPatient = appt.patient.toLowerCase() === account?.toLowerCase();
+                const isDoctor = appt.doctor.toLowerCase() === account?.toLowerCase();
+
+                if (isPatient || isDoctor) {
+                    const otherLabel = isPatient
+                        ? `Dr. ${appt.doctor.slice(0, 6)}...`
+                        : `Patient ${appt.patient.slice(0, 6)}...`;
+
+                    toast({
+                        title: "✅ Appointment Completed",
+                        description: isPatient
+                            ? `Your consultation with ${otherLabel} has been marked complete.`
+                            : `You have successfully completed consultation #${appointmentId}.`,
+                    });
+                }
+            } catch (err) {
+                console.error("Appointment Completed notification error:", err);
+            }
+        };
+
+        // 4. Medicine Prescribed listener
+        const onMedicinePrescribed = (patient, doctor, medicineId) => {
+            try {
+                if (patient.toLowerCase() === account?.toLowerCase()) {
+                    toast({
+                        title: "💊 Prescription Written",
+                        description: `Dr. ${doctor.slice(0, 6)}... has prescribed a medicine for you.`,
+                    });
+                }
+            } catch (err) {
+                console.error("Medicine Prescribed notification error:", err);
+            }
+        };
+
+        // 5. Medical Record Updated listener
+        const onMedicalRecordUpdated = (patient, doctor) => {
+            try {
+                if (patient.toLowerCase() === account?.toLowerCase()) {
+                    toast({
+                        title: "📂 Medical Record Updated",
+                        description: `Dr. ${doctor.slice(0, 6)}... has added a new record to your history.`,
+                    });
+                }
+            } catch (err) {
+                console.error("Medical Record Updated notification error:", err);
+            }
+        };
+
         contract.on("MessageSent", onMessageSent);
+        contract.on("AppointmentBooked", onAppointmentBooked);
+        contract.on("AppointmentCompleted", onAppointmentCompleted);
+        contract.on("MedicinePrescribed", onMedicinePrescribed);
+        contract.on("MedicalRecordUpdated", onMedicalRecordUpdated);
+
         return () => {
             contract.off("MessageSent", onMessageSent);
+            contract.off("AppointmentBooked", onAppointmentBooked);
+            contract.off("AppointmentCompleted", onAppointmentCompleted);
+            contract.off("MedicinePrescribed", onMedicinePrescribed);
+            contract.off("MedicalRecordUpdated", onMedicalRecordUpdated);
         };
-    }, [contract, account]);
+    }, [contract, account, toast]);
 
     const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -143,26 +250,32 @@ export default function DynamicHeader({ title = "Dashboard" }) {
                                         >
                                             {/* Icon */}
                                             <div className="w-8 h-8 rounded-full bg-teal-500/10 flex items-center justify-center shrink-0 mt-0.5">
-                                                <MessageSquare className="w-4 h-4 text-teal-400" />
+                                                {notif.type === "message" ? (
+                                                    <MessageSquare className="w-4 h-4 text-teal-400" />
+                                                ) : (
+                                                    <Bell className="w-4 h-4 text-teal-400" />
+                                                )}
                                             </div>
-
+ 
                                             {/* Content */}
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-sm text-foreground font-medium">New Message</p>
+                                                <p className="text-sm text-foreground font-medium">{notif.title || "Alert"}</p>
                                                 <p className="text-xs text-muted-foreground truncate">
-                                                    From: <span className="font-mono text-teal-400">{notif.senderLabel}</span>
+                                                    {notif.description || `From: ${notif.senderLabel}`}
                                                 </p>
                                                 <p className="text-[10px] text-muted-foreground mt-0.5">{notif.time}</p>
                                             </div>
-
+ 
                                             {/* Actions */}
                                             <div className="flex items-center gap-1 shrink-0">
-                                                <button
-                                                    onClick={() => openChat(notif.senderFull)}
-                                                    className="text-xs text-primary hover:text-primary/80 font-medium flex items-center gap-0.5 px-2 py-1 rounded-lg hover:bg-primary/10 transition-colors"
-                                                >
-                                                    Open <ChevronRight className="w-3 h-3" />
-                                                </button>
+                                                {notif.type === "message" && (
+                                                    <button
+                                                        onClick={() => openChat(notif.senderFull)}
+                                                        className="text-xs text-primary hover:text-primary/80 font-medium flex items-center gap-0.5 px-2 py-1 rounded-lg hover:bg-primary/10 transition-colors"
+                                                    >
+                                                        Open <ChevronRight className="w-3 h-3" />
+                                                    </button>
+                                                )}
                                                 <button
                                                     onClick={() => dismissNotification(notif.id)}
                                                     className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-full hover:bg-muted"

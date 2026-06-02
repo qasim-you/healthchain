@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { FileHeart, Search, User, CheckCircle2 } from "lucide-react";
 
 export default function DoctorPatients() {
-    const { contract } = useWeb3Context();
+    const { contract, account } = useWeb3Context();
     const { toast } = useToast();
 
     const [allPatients, setAllPatients] = useState([]);
@@ -20,20 +20,62 @@ export default function DoctorPatients() {
     const [form, setForm] = useState({ diagnosis: "", history: "" });
 
     useEffect(() => {
-        if (!contract) return;
+        if (!contract || !account) return;
         const fetchPatients = async () => {
             setLoading(true);
             try {
+                const uniquePatientAddrs = new Set();
+                
+                // A. Check general consultant patients
                 const pCount = await contract.patientCount();
-                const pts = [];
+                const patientPromises = [];
                 for (let i = 0; i < Number(pCount); i++) {
-                    const addr = await contract.patientAddresses(i);
-                    const pt = await contract.patients(addr);
-                    if (pt.isRegistered) {
-                        pts.push(pt);
-                    }
+                    patientPromises.push(
+                        (async () => {
+                            const addr = await contract.patientAddresses(i);
+                            const pt = await contract.patients(addr);
+                            if (pt.isRegistered && pt.generalConsultant.toLowerCase() === account.toLowerCase()) {
+                                uniquePatientAddrs.add(addr.toLowerCase());
+                            }
+                        })()
+                    );
                 }
-                setAllPatients(pts);
+                await Promise.all(patientPromises);
+
+                // B. Check patients who have appointments with this doctor
+                try {
+                    const apptCount = await contract.appointmentCount();
+                    const apptPromises = [];
+                    for (let i = 1; i <= Number(apptCount); i++) {
+                        apptPromises.push(
+                            (async () => {
+                                const appt = await contract.appointments(i);
+                                if (appt.doctor.toLowerCase() === account.toLowerCase()) {
+                                    uniquePatientAddrs.add(appt.patient.toLowerCase());
+                                }
+                            })()
+                        );
+                    }
+                    await Promise.all(apptPromises);
+                } catch (e) {
+                    console.error("Error reading doctor appointments for diagnosis:", e);
+                }
+
+                // C. Resolve patient objects
+                const resolvedPatients = [];
+                const uniquePatientsArray = Array.from(uniquePatientAddrs);
+                const resolvePromises = uniquePatientsArray.map(async (ptAddr) => {
+                    try {
+                        const pt = await contract.patients(ptAddr);
+                        if (pt.isRegistered) {
+                            resolvedPatients.push(pt);
+                        }
+                    } catch (e) {
+                        console.error("Error resolving patient:", ptAddr, e);
+                    }
+                });
+                await Promise.all(resolvePromises);
+                setAllPatients(resolvedPatients);
             } catch (err) {
                 console.error("Failed to load patients", err);
             } finally {
@@ -41,7 +83,7 @@ export default function DoctorPatients() {
             }
         };
         fetchPatients();
-    }, [contract]);
+    }, [contract, account]);
 
     const filteredPatients = allPatients.filter(p => 
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||

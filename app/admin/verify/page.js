@@ -104,9 +104,15 @@ export default function VerifyDoctors() {
                                         </td>
                                         <td className="px-6 py-4 text-center">
                                             {doc.isVerified ? (
-                                                <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 px-3 py-1">
-                                                    Verified
-                                                </Badge>
+                                                <div className="flex items-center gap-2 justify-center">
+                                                    <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 px-3 py-1">
+                                                        Verified
+                                                    </Badge>
+                                                    <Button size="sm" variant="destructive" onClick={() => handleVerify(doc.wallet, false)}
+                                                        className="rounded-lg">
+                                                        <UserX className="w-4 h-4 mr-1.5" /> Deactivate
+                                                    </Button>
+                                                </div>
                                             ) : (
                                                 <div className="flex items-center gap-2 justify-center">
                                                     <Button size="sm" onClick={() => handleVerify(doc.wallet, true)}

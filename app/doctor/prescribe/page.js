@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 
 export default function PrescribeMedicine() {
-    const { contract, role } = useWeb3Context();
+    const { contract, role, account } = useWeb3Context();
     const { toast } = useToast();
     const [medicines, setMedicines] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -29,21 +29,65 @@ export default function PrescribeMedicine() {
 
     useEffect(() => {
         const fetchData = async () => {
-            if (!contract) return;
+            if (!contract || !account) return;
             try {
                 // Fetch Medicines
                 const medData = await contract.getAllMedicines();
                 setMedicines(medData);
 
-                // Fetch all registered patients for Dropdown
+                // Fetch only matching patients (General Consultant or Booked Appointment)
+                const uniquePatientAddrs = new Set();
+                
+                // A. Check general consultant patients
                 const pCount = await contract.patientCount();
-                const pts = [];
+                const patientPromises = [];
                 for (let i = 0; i < Number(pCount); i++) {
-                    const addr = await contract.patientAddresses(i);
-                    const pt = await contract.patients(addr);
-                    if (pt.isRegistered) pts.push(pt);
+                    patientPromises.push(
+                        (async () => {
+                            const addr = await contract.patientAddresses(i);
+                            const pt = await contract.patients(addr);
+                            if (pt.isRegistered && pt.generalConsultant.toLowerCase() === account.toLowerCase()) {
+                                uniquePatientAddrs.add(addr.toLowerCase());
+                            }
+                        })()
+                    );
                 }
-                setPatients(pts);
+                await Promise.all(patientPromises);
+
+                // B. Check patients who have appointments with this doctor
+                try {
+                    const apptCount = await contract.appointmentCount();
+                    const apptPromises = [];
+                    for (let i = 1; i <= Number(apptCount); i++) {
+                        apptPromises.push(
+                            (async () => {
+                                const appt = await contract.appointments(i);
+                                if (appt.doctor.toLowerCase() === account.toLowerCase()) {
+                                    uniquePatientAddrs.add(appt.patient.toLowerCase());
+                                }
+                            })()
+                        );
+                    }
+                    await Promise.all(apptPromises);
+                } catch (e) {
+                    console.error("Error reading doctor appointments for prescribing:", e);
+                }
+
+                // C. Resolve patient objects
+                const resolvedPatients = [];
+                const uniquePatientsArray = Array.from(uniquePatientAddrs);
+                const resolvePromises = uniquePatientsArray.map(async (ptAddr) => {
+                    try {
+                        const pt = await contract.patients(ptAddr);
+                        if (pt.isRegistered) {
+                            resolvedPatients.push(pt);
+                        }
+                    } catch (e) {
+                        console.error("Error resolving patient:", ptAddr, e);
+                    }
+                });
+                await Promise.all(resolvePromises);
+                setPatients(resolvedPatients);
 
             } catch (error) {
                 console.error(error);
@@ -52,7 +96,7 @@ export default function PrescribeMedicine() {
             }
         };
         fetchData();
-    }, [contract]);
+    }, [contract, account]);
 
     const handlePrescribe = async (e) => {
         e.preventDefault();
@@ -96,13 +140,13 @@ export default function PrescribeMedicine() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 relative z-10">
                 {loading ? (
                     Array(8).fill(0).map((_, i) => <div key={i} className="h-80 bg-card border border-border rounded-3xl animate-pulse"></div>)
-                ) : medicines.length === 0 ? (
+                ) : medicines.filter(med => med.isActive).length === 0 ? (
                     <div className="col-span-full py-20 text-center text-foreground0">
                         <Info className="w-16 h-16 mx-auto opacity-20 mb-4" />
                         <p>No verified medicines in the database.</p>
                     </div>
                 ) : (
-                    medicines.map((med, idx) => {
+                    medicines.filter(med => med.isActive).map((med, idx) => {
                         const isOutOfStock = Number(med.stockQuantity) <= 0;
                         return (
                             <div key={idx} className={`bg-card border border-border rounded-3xl overflow-hidden transition-all flex flex-col ${isOutOfStock ? "opacity-60" : "hover:border-amber-500/50 shadow-xl"}`}>

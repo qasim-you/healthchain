@@ -6,12 +6,81 @@ import { useWeb3Context } from "@/contexts/Web3Context";
 import { Users, FileHeart, CalendarCheck } from "lucide-react";
 
 export default function DoctorDashboard() {
-    const { role } = useWeb3Context();
+    const { contract, account } = useWeb3Context();
+    const [stats, setStats] = useState({
+        patients: 0,
+        activeAppointments: 0,
+        diagnoses: 0
+    });
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (!contract || !account) return;
+        const fetchStats = async () => {
+            setLoading(true);
+            try {
+                // 1. Fetch total patients who selected this doctor as general consultant
+                const pCount = await contract.patientCount();
+                let myPatientsCount = 0;
+                let myDiagnosesCount = 0;
+                
+                const patientPromises = [];
+                for (let i = 0; i < Number(pCount); i++) {
+                    patientPromises.push(
+                        (async () => {
+                            const addr = await contract.patientAddresses(i);
+                            const pt = await contract.patients(addr);
+                            if (pt.isRegistered && pt.generalConsultant.toLowerCase() === account.toLowerCase()) {
+                                myPatientsCount++;
+                            }
+                            
+                            // Fetch diagnoses counts
+                            try {
+                                const records = await contract.getPatientMedicalHistory(addr);
+                                const myRecords = records.filter(r => r.doctor.toLowerCase() === account.toLowerCase());
+                                myDiagnosesCount += myRecords.length;
+                            } catch (e) {
+                                // Gracefully ignore if not authorized
+                            }
+                        })()
+                    );
+                }
+                
+                // 2. Fetch active appointments
+                let activeApptsCount = 0;
+                const apptCount = await contract.appointmentCount();
+                const apptPromises = [];
+                for (let i = 1; i <= Number(apptCount); i++) {
+                    apptPromises.push(
+                        (async () => {
+                            const appt = await contract.appointments(i);
+                            if (appt.doctor.toLowerCase() === account.toLowerCase() && !appt.isCompleted) {
+                                activeApptsCount++;
+                            }
+                        })()
+                    );
+                }
+
+                await Promise.all([...patientPromises, ...apptPromises]);
+
+                setStats({
+                    patients: myPatientsCount,
+                    activeAppointments: activeApptsCount,
+                    diagnoses: myDiagnosesCount
+                });
+            } catch (err) {
+                console.error("Failed to load doctor dashboard stats:", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchStats();
+    }, [contract, account]);
 
     const metrics = [
-        { title: "Total Patients Assessed", value: "3", icon: Users, color: "text-blue-500", bg: "bg-blue-500/10" },
-        { title: "Active Appointments", value: "1", icon: CalendarCheck, color: "text-emerald-500", bg: "bg-emerald-500/10" },
-        { title: "Digital Diagnoses", value: "7", icon: FileHeart, color: "text-rose-500", bg: "bg-rose-500/10" },
+        { title: "Total Patients Assessed", value: loading ? "..." : stats.patients.toString(), icon: Users, color: "text-blue-500", bg: "bg-blue-500/10" },
+        { title: "Active Appointments", value: loading ? "..." : stats.activeAppointments.toString(), icon: CalendarCheck, color: "text-emerald-500", bg: "bg-emerald-500/10" },
+        { title: "Digital Diagnoses", value: loading ? "..." : stats.diagnoses.toString(), icon: FileHeart, color: "text-rose-500", bg: "bg-rose-500/10" },
     ];
 
     return (

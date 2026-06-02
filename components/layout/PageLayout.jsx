@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useWeb3Context } from "@/contexts/Web3Context";
 import DynamicSidebar from "./DynamicSidebar";
 import DynamicHeader from "./DynamicHeader";
@@ -9,6 +9,7 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 
 export default function PageLayout({ children, requiredRole, title }) {
     const router = useRouter();
+    const pathname = usePathname();
     const { account, role, isWalletConnected } = useWeb3Context();
     const [isAuthorized, setIsAuthorized] = useState(false);
 
@@ -17,15 +18,19 @@ export default function PageLayout({ children, requiredRole, title }) {
         const timer = setTimeout(() => {
             if (!isWalletConnected) {
                 router.push("/");
-            } else if (requiredRole && role !== requiredRole) {
-                router.push("/");
-            } else {
-                setIsAuthorized(true);
+                return;
             }
+
+            if (requiredRole && role !== requiredRole) {
+                router.push("/");
+                return;
+            }
+
+            setIsAuthorized(true);
         }, 1000);
 
         return () => clearTimeout(timer);
-    }, [isWalletConnected, role, requiredRole, router]);
+    }, [isWalletConnected, role, requiredRole, router, pathname]);
 
     if (!isAuthorized) {
         return (

@@ -24,6 +24,7 @@ export default function AdminMarketplace() {
     const [loading, setLoading] = useState(true);
     const [isAdding, setIsAdding] = useState(false);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [togglingMedicine, setTogglingMedicine] = useState(null);
 
     const [form, setForm] = useState({
         name: "", manufacturer: "", category: "Antibiotics",
@@ -46,6 +47,23 @@ export default function AdminMarketplace() {
     useEffect(() => {
         fetchMedicines();
     }, [contract]);
+
+    const handleToggleStatus = async (medicineId, currentStatus) => {
+        if (!contract) return;
+        setTogglingMedicine(medicineId);
+        try {
+            const tx = await contract.toggleMedicineStatus(medicineId, !currentStatus);
+            toast({ title: "Submitting status toggle..." });
+            await tx.wait();
+            toast({ title: "Success", description: "Medicine status updated successfully." });
+            fetchMedicines();
+        } catch (error) {
+            console.error(error);
+            toast({ title: "Error", description: error?.reason || error.message, variant: "destructive" });
+        } finally {
+            setTogglingMedicine(null);
+        }
+    };
 
     const handleAddMedicine = async (e) => {
         e.preventDefault();
@@ -188,11 +206,16 @@ export default function AdminMarketplace() {
                     </div>
                 ) : (
                     medicines.map((med, idx) => (
-                        <div key={idx} className="bg-card border border-border rounded-3xl overflow-hidden hover:border-border transition-all flex flex-col">
+                        <div key={idx} className={`bg-card border border-border rounded-3xl overflow-hidden hover:border-border transition-all flex flex-col ${!med.isActive ? "opacity-60" : ""}`}>
                             <div className="p-4 bg-white/5 relative group">
-                                {med.discount > 0 && (
+                                {med.discount > 0 && med.isActive && (
                                     <div className="absolute top-4 right-4 bg-rose-500 text-foreground text-xs font-bold px-2 py-1 rounded-lg z-10">
                                         {Number(med.discount)}% OFF
+                                    </div>
+                                )}
+                                {!med.isActive && (
+                                    <div className="absolute top-4 left-4 bg-red-500/80 backdrop-blur text-foreground text-[10px] font-bold px-3 py-1.5 rounded-lg z-10 uppercase tracking-widest border border-red-500/50">
+                                        Deactivated
                                     </div>
                                 )}
                                 <img src={med.imageURI || "https://placehold.co/400x300/1e293b/a8b8d8?text=Medicine"} alt={med.name} className="w-full h-48 object-cover rounded-2xl group-hover:scale-105 transition-transform duration-500" />
@@ -204,14 +227,26 @@ export default function AdminMarketplace() {
                                 </div>
                                 <p className="text-muted-foreground text-sm mb-4">By {med.manufacturer} • {med.dosage}</p>
 
-                                <div className="mt-auto pt-4 border-t border-border/50 flex justify-between items-end">
-                                    <div>
-                                        <p className="text-xs text-foreground0 font-medium mb-1">Price</p>
-                                        <p className="text-lg font-bold text-primary">{ethers.formatEther(med.price)} ETH</p>
+                                <div className="mt-auto pt-4 border-t border-border/50 flex flex-col gap-4">
+                                    <div className="flex justify-between items-end">
+                                        <div>
+                                            <p className="text-xs text-foreground0 font-medium mb-1">Price</p>
+                                            <p className="text-lg font-bold text-primary">{ethers.formatEther(med.price)} ETH</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-xs text-foreground0 font-medium mb-1">Stock</p>
+                                            <p className="text-sm font-semibold text-muted-foreground">{Number(med.stockQuantity)} units</p>
+                                        </div>
                                     </div>
-                                    <div className="text-right">
-                                        <p className="text-xs text-foreground0 font-medium mb-1">Stock</p>
-                                        <p className="text-sm font-semibold text-muted-foreground">{Number(med.stockQuantity)} units</p>
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            onClick={() => handleToggleStatus(med.id, med.isActive)}
+                                            disabled={togglingMedicine === med.id}
+                                            variant={med.isActive ? "destructive" : "default"}
+                                            className={`w-full rounded-xl h-10 ${!med.isActive ? "bg-emerald-600 hover:bg-emerald-500 text-white" : ""}`}
+                                        >
+                                            {togglingMedicine === med.id ? "Processing..." : med.isActive ? "Deactivate / Delete" : "Activate Medicine"}
+                                        </Button>
                                     </div>
                                 </div>
                             </div>

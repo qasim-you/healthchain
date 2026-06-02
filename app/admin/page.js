@@ -52,7 +52,7 @@ export default function AdminDashboard() {
                 {cards.map((card, i) => {
                     const Icon = card.icon;
                     return (
-                        <Card key={i} className="hover:border-primary/50 transition-colors bg-card text-card-foreground shadow-sm">
+                        <Card key={i} className="hover:border-primary/50 transition-colors bg-card text-card-foreground shadow-sm border-primary">
                             <CardContent className="p-6 flex items-center gap-5">
                                 <div className={`w-14 h-14 rounded-2xl ${card.bg} flex items-center justify-center shrink-0`}>
                                     <Icon className={`w-7 h-7 ${card.color}`} />

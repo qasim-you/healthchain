@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useWeb3Context } from "@/contexts/Web3Context";
@@ -24,6 +25,7 @@ const ROLE_NAV_LINKS = {
         { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
         { name: "Verify Doctors", href: "/admin/verify", icon: Users },
         { name: "Marketplace", href: "/admin/marketplace", icon: Pill },
+        { name: "Platform Records", href: "/admin/records", icon: ClipboardList },
     ],
     doctor: [
         { name: "Dashboard", href: "/doctor", icon: LayoutDashboard },
@@ -31,6 +33,9 @@ const ROLE_NAV_LINKS = {
         { name: "Patients", href: "/doctor/patients", icon: ClipboardList },
         { name: "Prescriptions", href: "/doctor/prescribe", icon: HeartPlus },
         { name: "Chat", href: "/chat", icon: MessageSquare },
+    ],
+    unverified_doctor: [
+        { name: "Dashboard", href: "/doctor", icon: LayoutDashboard },
     ],
     patient: [
         { name: "Dashboard", href: "/patient", icon: LayoutDashboard },
@@ -44,6 +49,7 @@ const ROLE_NAV_LINKS = {
 const ROLE_COLORS = {
     admin: "text-rose-400   bg-rose-500/10   border-rose-500/20",
     doctor: "text-teal-400   bg-teal-500/10   border-teal-500/20",
+    unverified_doctor: "text-amber-400 bg-amber-500/10 border-amber-500/20",
     patient: "text-primary bg-primary/10 border-primary/20",
 };
 
@@ -52,9 +58,9 @@ function Logo() {
     const collapsed = state === "collapsed";
 
     return (
-        <div className="flex items-center gap-3 px-3 py-2">
+        <div className="flex items-center gap-3 px-3 py-1">
             {/* Icon — always visible */}
-            <div className="shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600
+            <div className="shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-primary  to-primary/80
                             flex items-center justify-center shadow-lg shadow-teal-500/25">
                 <Hexagon className="w-5 h-5 text-white fill-white/20" />
             </div>
@@ -65,7 +71,7 @@ function Logo() {
                     <p className="text-sm font-bold text-foreground leading-none tracking-tight">
                         HealthChain
                     </p>
-                    <p className="text-[10px] font-semibold tracking-widest text-teal-500 mt-0.5 uppercase">
+                    <p className="text-[10px] font-semibold tracking-widest text-primary mt-0.5 uppercase">
                         Blockchain EMR
                     </p>
                 </div>
@@ -75,9 +81,41 @@ function Logo() {
 }
 
 function AccountCard({ account, role }) {
+    const { contract } = useWeb3Context();
     const { state } = useSidebar();
     const collapsed = state === "collapsed";
     const badge = ROLE_COLORS[role] || ROLE_COLORS.patient;
+
+    const [profileName, setProfileName] = useState("");
+    const [profileImage, setProfileImage] = useState("");
+
+    useEffect(() => {
+        if (!contract || !account || !role) return;
+
+        const loadProfile = async () => {
+            try {
+                if (role === "doctor" || role === "unverified_doctor") {
+                    const doc = await contract.doctors(account);
+                    if (doc.isRegistered) {
+                        setProfileName(`Dr. ${doc.name}`);
+                        setProfileImage(doc.profileImageURI);
+                    }
+                } else if (role === "patient") {
+                    const pt = await contract.patients(account);
+                    if (pt.isRegistered) {
+                        setProfileName(pt.name);
+                        setProfileImage(pt.profileImageURI);
+                    }
+                } else if (role === "admin") {
+                    setProfileName("System Admin");
+                }
+            } catch (err) {
+                console.error("Failed to load profile details in sidebar:", err);
+            }
+        };
+
+        loadProfile();
+    }, [contract, account, role]);
 
     const shortAddr = account
         ? `${account.slice(0, 6)}…${account.slice(-4)}`
@@ -87,14 +125,19 @@ function AccountCard({ account, role }) {
         return (
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <div className="mx-auto w-9 h-9 rounded-full bg-gradient-to-br from-teal-400 to-cyan-600
-                                    flex items-center justify-center cursor-default shadow-md shadow-teal-500/20">
-                        <Wallet className="w-4 h-4 text-white" />
+                    <div className="mx-auto w-9 h-9 rounded-full border border-border/80 overflow-hidden
+                                    flex items-center justify-center cursor-default shadow-md shadow-teal-500/20 bg-muted">
+                        <img
+                            src={profileImage || `https://api.dicebear.com/7.x/initials/svg?seed=${profileName || account}`}
+                            alt={profileName || "Profile"}
+                            className="w-full h-full object-cover"
+                        />
                     </div>
                 </TooltipTrigger>
                 <TooltipContent side="right">
-                    <p className="font-mono text-xs">{shortAddr}</p>
-                    <p className="text-xs capitalize text-muted-foreground">{role}</p>
+                    <p className="font-semibold text-xs text-foreground">{profileName || shortAddr}</p>
+                    <p className="font-mono text-[10px] text-muted-foreground">{shortAddr}</p>
+                    <p className="text-[10px] capitalize text-muted-foreground">{role}</p>
                 </TooltipContent>
             </Tooltip>
         );
@@ -103,16 +146,22 @@ function AccountCard({ account, role }) {
     return (
         <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl
                         bg-muted/50 border border-border">
-            <div className="shrink-0 w-9 h-9 rounded-full bg-gradient-to-br
-                            from-teal-400 to-cyan-600 flex items-center justify-center
-                            shadow-md shadow-teal-500/20">
-                <Wallet className="w-4 h-4 text-white" />
+            <div className="shrink-0 w-9 h-9 rounded-full border border-border/80 overflow-hidden bg-muted
+                            shadow-md shadow-teal-500/10">
+                <img
+                    src={profileImage || `https://api.dicebear.com/7.x/initials/svg?seed=${profileName || account}`}
+                    alt={profileName || "Profile"}
+                    className="w-full h-full object-cover"
+                />
             </div>
             <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold font-mono text-foreground truncate">
+                <p className="text-sm font-bold text-foreground truncate leading-none">
+                    {profileName || (account ? "Loading..." : "Not Connected")}
+                </p>
+                <p className="text-[10px] font-mono text-muted-foreground truncate mt-1">
                     {shortAddr}
                 </p>
-                <span className={`inline-block mt-0.5 text-[10px] font-semibold
+                <span className={`inline-block mt-1.5 text-[9px] font-semibold
                                   uppercase tracking-wider px-2 py-0.5 rounded-full
                                   border ${badge}`}>
                     {role}

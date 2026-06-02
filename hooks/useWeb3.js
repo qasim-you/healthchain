@@ -103,7 +103,11 @@ export const useWeb3 = () => {
 
             const doctorData = await healthcareContract.doctors(userAddress);
             if (doctorData.isRegistered) {
-                setRole("doctor");
+                if (doctorData.isVerified) {
+                    setRole("doctor");
+                } else {
+                    setRole("unverified_doctor");
+                }
                 return;
             }
 

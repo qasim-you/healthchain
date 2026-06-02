@@ -79,13 +79,13 @@ export default function Marketplace() {
                     Array(8).fill(0).map((_, i) => (
                         <div key={i} className="h-80 bg-card border border-border rounded-3xl animate-pulse"></div>
                     ))
-                ) : medicines.length === 0 ? (
+                ) : medicines.filter(med => med.isActive).length === 0 ? (
                     <div className="col-span-full py-20 text-center text-foreground0 flex flex-col items-center">
                         <Pill className="w-16 h-16 opacity-20 mb-4" />
                         <p>No medicines available in the marketplace yet.</p>
                     </div>
                 ) : (
-                    medicines.map((med, idx) => {
+                    medicines.filter(med => med.isActive).map((med, idx) => {
                         const priceEther = ethers.formatEther(med.price);
                         const isOutOfStock = Number(med.stockQuantity) <= 0;
 

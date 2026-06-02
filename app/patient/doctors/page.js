@@ -16,10 +16,11 @@ import {
 } from "@/components/ui/dialog";
 
 export default function FindDoctor() {
-    const { contract } = useWeb3Context();
+    const { contract, account } = useWeb3Context();
     const { toast } = useToast();
     const [doctors, setDoctors] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [consultantAddr, setConsultantAddr] = useState("");
 
     const [selectedDoctor, setSelectedDoctor] = useState(null);
     const [form, setForm] = useState({ date: "", time: "", note: "" });
@@ -37,9 +38,34 @@ export default function FindDoctor() {
         }
     };
 
+    const fetchConsultant = async () => {
+        if (!contract || !account) return;
+        try {
+            const pt = await contract.patients(account);
+            setConsultantAddr(pt.generalConsultant);
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
     useEffect(() => {
         fetchDoctors();
-    }, [contract]);
+        fetchConsultant();
+    }, [contract, account]);
+
+    useEffect(() => {
+        if (consultantAddr && consultantAddr !== "0x0000000000000000000000000000000000000000") {
+            const hasShown = sessionStorage.getItem("roster_info_shown");
+            if (!hasShown) {
+                toast({
+                    title: "💡 Platform Roster Information",
+                    description: "Other than the doctor you selected at the time of registration, these are the other doctors in the system. You can also chat with them and book appointments.",
+                    duration: 8000,
+                });
+                sessionStorage.setItem("roster_info_shown", "true");
+            }
+        }
+    }, [consultantAddr, toast]);
 
     const handleBook = async (e) => {
         e.preventDefault();
@@ -84,6 +110,8 @@ export default function FindDoctor() {
                 </div>
             </div>
 
+
+
             {/* Grok AI Recommendation Banner */}
             {!loading && doctors.length > 0 && (
                 (() => {
@@ -127,7 +155,14 @@ export default function FindDoctor() {
                             <div className="w-24 h-24 mb-4 rounded-full border-4 border-border bg-muted overflow-hidden relative z-10 group-hover:border-primary transition-colors">
                                 <img src={doc.profileImageURI || `https://api.dicebear.com/7.x/initials/svg?seed=${doc.name}`} alt={doc.name} className="w-full h-full object-cover" />
                             </div>
-                            <Badge className="bg-primary/10 text-primary border-none mb-3 px-3 relative z-10">{doc.specialization}</Badge>
+                            <div className="flex gap-2 mb-3 relative z-10 flex-wrap justify-center">
+                                <Badge className="bg-primary/10 text-primary border-none px-3">{doc.specialization}</Badge>
+                                {doc.wallet.toLowerCase() === consultantAddr.toLowerCase() && (
+                                    <Badge className="bg-teal-500/20 text-teal-300 border border-teal-500/40 px-3 flex items-center gap-1">
+                                        ★ Registered Consultant
+                                    </Badge>
+                                )}
+                            </div>
                             <h3 className="text-xl font-bold text-foreground relative z-10">{doc.name}</h3>
                             <p className="text-muted-foreground text-sm mt-1 mb-4 relative z-10">{doc.experience} Years Experience</p>
 

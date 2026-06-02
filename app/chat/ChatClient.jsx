@@ -50,43 +50,131 @@ export default function ChatClient() {
     };
 
     const [contacts, setContacts] = useState([]);
+    const [loadingContacts, setLoadingContacts] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
 
     useEffect(() => {
-        if (!contract || !role) return;
+        if (!contract || !role || !account) return;
         const fetchContacts = async () => {
+            setLoadingContacts(true);
             try {
                 if (role === "patient") {
-                    const docs = await contract.getAllDoctors();
-                    setContacts(docs.filter(d => d.isVerified).map(d => ({
-                        wallet: d.wallet,
-                        name: `Dr. ${d.name}`,
-                        desc: d.specialization,
-                        image: d.profileImageURI
-                    })));
-                } else if (role === "doctor") {
-                    const pCount = await contract.patientCount();
-                    const pts = [];
-                    for (let i = 0; i < Number(pCount); i++) {
-                        const addr = await contract.patientAddresses(i);
-                        const pt = await contract.patients(addr);
-                        if (pt.isRegistered) {
-                            pts.push({
-                                wallet: pt.wallet,
-                                name: pt.name,
-                                desc: "Registered Patient",
-                                image: pt.profileImageURI
-                            });
-                        }
+                    const uniqueDoctors = new Set();
+
+                    // A. Add general consultant
+                    const pt = await contract.patients(account);
+                    const consultantAddr = pt.generalConsultant;
+                    if (consultantAddr && consultantAddr !== "0x0000000000000000000000000000000000000000") {
+                        uniqueDoctors.add(consultantAddr.toLowerCase());
                     }
-                    setContacts(pts);
+
+                    // B. Add doctors they have appointments with
+                    try {
+                        const apptCount = await contract.appointmentCount();
+                        const apptPromises = [];
+                        for (let i = 1; i <= Number(apptCount); i++) {
+                            apptPromises.push(
+                                (async () => {
+                                    const appt = await contract.appointments(i);
+                                    if (appt.patient.toLowerCase() === account.toLowerCase()) {
+                                        uniqueDoctors.add(appt.doctor.toLowerCase());
+                                    }
+                                })()
+                            );
+                        }
+                        await Promise.all(apptPromises);
+                    } catch (e) {
+                        console.error("Error reading patient appointments for chat roster:", e);
+                    }
+
+                    // C. Resolve doctor details
+                    const doctorDetailsList = [];
+                    const uniqueDoctorsArray = Array.from(uniqueDoctors);
+                    const docPromises = uniqueDoctorsArray.map(async (docAddr) => {
+                        try {
+                            const d = await contract.doctors(docAddr);
+                            if (d.isRegistered && d.isVerified) {
+                                doctorDetailsList.push({
+                                    wallet: d.wallet,
+                                    name: `Dr. ${d.name}`,
+                                    desc: d.specialization,
+                                    image: d.profileImageURI
+                                });
+                            }
+                        } catch (e) {
+                            console.error("Error fetching doctor metadata:", docAddr, e);
+                        }
+                    });
+                    await Promise.all(docPromises);
+                    setContacts(doctorDetailsList);
+
+                } else if (role === "doctor") {
+                    const uniquePatients = new Set();
+
+                    // A. Add patients who selected this doctor as general consultant
+                    const pCount = await contract.patientCount();
+                    const patientPromises = [];
+                    for (let i = 0; i < Number(pCount); i++) {
+                        patientPromises.push(
+                            (async () => {
+                                const addr = await contract.patientAddresses(i);
+                                const pt = await contract.patients(addr);
+                                if (pt.isRegistered && pt.generalConsultant.toLowerCase() === account.toLowerCase()) {
+                                    uniquePatients.add(addr.toLowerCase());
+                                }
+                            })()
+                        );
+                    }
+                    await Promise.all(patientPromises);
+
+                    // B. Add patients who have appointments with this doctor
+                    try {
+                        const apptCount = await contract.appointmentCount();
+                        const apptPromises = [];
+                        for (let i = 1; i <= Number(apptCount); i++) {
+                            apptPromises.push(
+                                (async () => {
+                                    const appt = await contract.appointments(i);
+                                    if (appt.doctor.toLowerCase() === account.toLowerCase()) {
+                                        uniquePatients.add(appt.patient.toLowerCase());
+                                    }
+                                })()
+                            );
+                        }
+                        await Promise.all(apptPromises);
+                    } catch (e) {
+                        console.error("Error reading doctor appointments for chat roster:", e);
+                    }
+
+                    // C. Resolve patient details
+                    const patientDetailsList = [];
+                    const uniquePatientsArray = Array.from(uniquePatients);
+                    const ptPromises = uniquePatientsArray.map(async (ptAddr) => {
+                        try {
+                            const pt = await contract.patients(ptAddr);
+                            if (pt.isRegistered) {
+                                patientDetailsList.push({
+                                    wallet: pt.wallet,
+                                    name: pt.name,
+                                    desc: "Registered Patient",
+                                    image: pt.profileImageURI
+                                });
+                            }
+                        } catch (e) {
+                            console.error("Error fetching patient metadata:", ptAddr, e);
+                        }
+                    });
+                    await Promise.all(ptPromises);
+                    setContacts(patientDetailsList);
                 }
             } catch (err) {
                 console.error("Failed to load contacts:", err);
+            } finally {
+                setLoadingContacts(false);
             }
         };
         fetchContacts();
-    }, [contract, role]);
+    }, [contract, role, account]);
 
     useEffect(() => {
         if (!contract || !account) return;
@@ -256,13 +344,13 @@ export default function ChatClient() {
             toast({ title: "Recording voice message", description: "Tap again to stop and send." });
         } catch (error) {
             console.error(error);
-            toast({ title: "Recording Failed", description: "Please allow microphone access." , variant: "destructive" });
+            toast({ title: "Recording Failed", description: "Please allow microphone access.", variant: "destructive" });
             setRecording(false);
         }
     };
 
-    const filteredContacts = contacts.filter(c => 
-        c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    const filteredContacts = contacts.filter(c =>
+        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         c.wallet.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
@@ -312,43 +400,43 @@ export default function ChatClient() {
                 <div className="absolute -top-20 -left-20 w-48 h-48 bg-primary/10 blur-[50px] rounded-full pointer-events-none"></div>
 
                 <h3 className="text-xl font-bold text-foreground mb-4 relative z-10 flex items-center gap-2">
-                    <MessageCircle className="w-6 h-6 text-teal-400" /> Contacts
+                    <MessageCircle className="w-6 h-6 text-primary" /> Contacts
                 </h3>
-                
+
                 <div className="relative z-10 mb-4 shrink-0">
                     <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <input 
-                        type="text" 
-                        placeholder={`Search ${role === "patient" ? "doctors" : "patients"}...`} 
-                        className="w-full bg-background border border-border pl-10 pr-4 py-3 rounded-2xl text-foreground outline-none focus:border-teal-500 text-sm transition-colors"
-                        value={searchQuery} 
-                        onChange={e => setSearchQuery(e.target.value)} 
+                    <input
+                        type="text"
+                        placeholder={`Search ${role === "patient" ? "doctors" : "patients"}...`}
+                        className="w-full bg-background border border-border pl-10 pr-4 py-3 rounded-2xl text-foreground outline-none focus:border-primary text-sm transition-colors"
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
                     />
                 </div>
 
                 <div className="flex-1 overflow-y-auto space-y-2 relative z-10 pr-1 styled-scrollbar">
-                    {contacts.length === 0 ? (
+                    {loadingContacts ? (
                         <div className="flex flex-col items-center justify-center h-32 text-center text-muted-foreground">
                             <span className="animate-spin border-2 border-primary border-t-transparent rounded-full w-6 h-6 mb-2"></span>
                             <p className="text-sm">Loading directory...</p>
                         </div>
                     ) : filteredContacts.length === 0 ? (
-                        <p className="text-sm text-center text-muted-foreground mt-8">No match found.</p>
+                        <p className="text-sm text-center text-muted-foreground mt-8">No active contacts found.</p>
                     ) : (
                         filteredContacts.map((c, i) => (
-                            <button 
-                                key={i} 
+                            <button
+                                key={i}
                                 onClick={() => handleSelectContact(c.wallet)}
-                                className={`w-full text-left p-3 rounded-2xl border flex items-center gap-3 transition-all duration-200 ${activePartner === c.wallet ? "bg-teal-500/10 border-teal-500/30 scale-[1.02] shadow-sm" : "bg-background/50 border-transparent hover:bg-background hover:border-teal-500/20"}`}
+                                className={`w-full text-left p-3 rounded-2xl border flex items-center gap-3 transition-all duration-200 ${activePartner === c.wallet ? "bg-primary/10 border-primary/30 scale-[1.02] shadow-sm" : "bg-background/50 border-transparent hover:bg-background hover:border-primary/20"}`}
                             >
                                 <div className="w-10 h-10 rounded-full bg-muted overflow-hidden shrink-0">
                                     <img src={c.image || `https://api.dicebear.com/7.x/initials/svg?seed=${c.name}`} alt={c.name} className="w-full h-full object-cover" />
                                 </div>
                                 <div className="overflow-hidden flex-1">
                                     <p className="font-semibold text-sm text-foreground truncate">{c.name}</p>
-                                    <p className="text-[10px] text-teal-400 uppercase tracking-wider truncate">{c.desc}</p>
+                                    <p className="text-[10px] text-primary uppercase tracking-wider truncate">{c.desc}</p>
                                 </div>
-                                {activePartner === c.wallet && <div className="w-2 h-2 rounded-full bg-teal-400 shrink-0 shadow-[0_0_8px_rgba(45,212,191,0.8)]"></div>}
+                                {activePartner === c.wallet && <div className="w-2 h-2 rounded-full bg-primary shrink-0 shadow-[0_0_8px_var(--primary)]"></div>}
                             </button>
                         ))
                     )}
@@ -379,8 +467,8 @@ export default function ChatClient() {
                         <div ref={scrollRef} className="flex-1 overflow-y-auto p-8 flex flex-col gap-6 relative z-10 scroll-smooth bg-[url('/noise.png')] bg-repeat opacity-[0.99]">
                             {messages.length === 0 ? (
                                 <div className="m-auto flex flex-col items-center text-center text-muted-foreground p-6 max-w-sm">
-                                    <div className="w-16 h-16 rounded-full bg-teal-500/10 flex items-center justify-center mb-4">
-                                        <MessageCircle className="w-8 h-8 text-teal-500/50" />
+                                    <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                                        <MessageCircle className="w-8 h-8 text-primary/50" />
                                     </div>
                                     <p>Start a secure, end-to-end encrypted conversation with {activeContactDetails?.name}.</p>
                                 </div>
@@ -397,7 +485,7 @@ export default function ChatClient() {
                                                 </div>
                                             )}
                                             <div className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
-                                                <div className={`px-5 py-3.5 rounded-2xl shadow-sm text-[15px] leading-relaxed ${isMe ? "bg-teal-600 text-white rounded-br-sm shadow-teal-600/20" : "bg-muted border border-border text-foreground rounded-bl-sm"}`}>
+                                                <div className={`px-5 py-3.5 rounded-2xl shadow-sm text-[15px] leading-relaxed ${isMe ? "bg-primary text-primary-foreground rounded-br-sm shadow-primary/20" : "bg-muted border border-border text-foreground rounded-bl-sm"}`}>
                                                     {renderMessageContent(msg.content)}
                                                 </div>
                                                 <span className="text-[10px] text-muted-foreground font-semibold mt-1.5 px-1">{time}</span>
@@ -413,12 +501,12 @@ export default function ChatClient() {
                         <div className="p-4 bg-background/80 border-t border-border shrink-0 relative z-10 backdrop-blur-xl">
                             <form onSubmit={handleSend} className="space-y-3">
                                 <div className="flex items-center gap-2">
-                                    <input 
-                                        type="text" 
-                                        placeholder="Type a secure message..." 
-                                        className="flex-1 bg-card border border-border px-6 py-4 rounded-full text-foreground outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all placeholder-slate-500 text-sm shadow-inner"
-                                        value={newMessage} 
-                                        onChange={e => setNewMessage(e.target.value)} 
+                                    <input
+                                        type="text"
+                                        placeholder="Type a secure message..."
+                                        className="flex-1 bg-card border border-border px-6 py-4 rounded-full text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all placeholder-slate-500 text-sm shadow-inner"
+                                        value={newMessage}
+                                        onChange={e => setNewMessage(e.target.value)}
                                     />
 
                                     <button
@@ -439,7 +527,7 @@ export default function ChatClient() {
                                         <Mic className="w-5 h-5" />
                                     </button>
 
-                                    <Button type="submit" disabled={sending || isUploadingFile} className="w-14 h-14 rounded-full bg-teal-500 hover:bg-teal-400 text-white shrink-0 shadow-[0_0_20px_-5px_rgba(20,184,166,0.5)] transition-all transform hover:scale-105 active:scale-95">
+                                    <Button type="submit" disabled={sending || isUploadingFile} className="w-14 h-14 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground shrink-0 shadow-md shadow-primary/20 transition-all transform hover:scale-105 active:scale-95">
                                         {sending ? <span className="animate-spin border-2 border-white/30 border-t-white rounded-full w-6 h-6"></span> : <Send className="w-5 h-5 ml-1" />}
                                     </Button>
                                 </div>
@@ -460,9 +548,9 @@ export default function ChatClient() {
                     </>
                 ) : (
                     <div className="m-auto flex flex-col items-center justify-center text-muted-foreground p-8 text-center h-full relative">
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-teal-500/5 blur-[100px] rounded-full pointer-events-none"></div>
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-primary/5 blur-[100px] rounded-full pointer-events-none"></div>
                         <div className="w-24 h-24 rounded-full bg-card border border-border flex items-center justify-center mb-6 shadow-xl relative z-10">
-                            <MessageCircle className="w-10 h-10 text-teal-500/40" />
+                            <MessageCircle className="w-10 h-10 text-primary/40" />
                         </div>
                         <h4 className="text-2xl font-bold text-foreground mb-3 relative z-10">Decentralized Messaging</h4>
                         <p className="max-w-md leading-relaxed relative z-10">Connect your wallet with your counterpart address. All chats are routed through the EVM blockchain ensuring total immutability and verified identity.</p>

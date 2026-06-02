@@ -12,8 +12,8 @@ const HealthBotIcon = () => (
     <circle cx="25" cy="17" r="1.5" fill="white" />
     <defs>
       <linearGradient id="botGrad" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
-        <stop stopColor="#14b8a6" />
-        <stop offset="1" stopColor="#38bdf8" />
+        <stop stopColor="var(--primary)" />
+        <stop offset="1" stopColor="var(--primary)" stopOpacity="0.7" />
       </linearGradient>
     </defs>
   </svg>
@@ -156,48 +156,48 @@ export default function Chatbot() {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-full bg-white border border-slate-200 shadow-lg shadow-slate-300/20 hover:-translate-y-0.5 transition-all"
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-full bg-card border border-border shadow-lg shadow-primary/10 hover:-translate-y-0.5 transition-all text-foreground"
           aria-label="Open HealthBot"
         >
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-cyan-500 to-sky-500 p-2 text-white shadow-inner">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary to-primary/80 p-2 text-white shadow-inner">
             <HealthBotIcon />
           </div>
           <div className="text-left leading-tight">
-            <p className="text-sm font-semibold text-slate-900">HealthBot</p>
-            <p className="text-[11px] text-slate-500">Voice + Urdu support</p>
+            <p className="text-sm font-semibold">HealthBot</p>
+            <p className="text-[11px] text-muted-foreground">Voice + Urdu support</p>
           </div>
-          <Sparkles className="w-4 h-4 text-cyan-500 animate-pulse" />
+          <Sparkles className="w-4 h-4 text-primary animate-pulse" />
         </button>
       )}
 
       {isOpen && (
-        <div className="fixed bottom-6 right-6 z-50 w-[360px] sm:w-[430px] h-[580px] flex flex-col rounded-[32px] overflow-hidden border border-slate-200 shadow-2xl shadow-slate-300/30 bg-slate-50">
-          <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-cyan-600 to-sky-600 text-white">
+        <div className="fixed bottom-6 right-6 z-50 w-[360px] sm:w-[430px] h-[580px] flex flex-col rounded-[32px] overflow-hidden border border-border shadow-2xl shadow-primary/10 bg-card">
+          <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-3xl bg-white/10 flex items-center justify-center border border-white/20 shadow-lg shadow-cyan-500/20">
+              <div className="w-12 h-12 rounded-3xl bg-white/10 flex items-center justify-center border border-white/20 shadow-lg shadow-primary/20">
                 <HealthBotIcon />
               </div>
               <div>
                 <p className="text-sm font-semibold">HealthBot</p>
-                <p className="text-[11px] text-cyan-100">Real-time voice chat in Urdu & English</p>
+                <p className="text-[11px] text-primary-foreground/80">Real-time voice chat in Urdu & English</p>
               </div>
             </div>
             <button
               onClick={() => setIsOpen(false)}
-              className="w-10 h-10 rounded-2xl flex items-center justify-center bg-white/10 hover:bg-white/20 transition-colors"
+              className="w-10 h-10 rounded-2xl flex items-center justify-center bg-white/10 hover:bg-white/20 transition-colors text-primary-foreground"
             >
               <X size={18} />
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
+          <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4 bg-background/50">
             {messages.map((msg, index) => {
               const isUser = msg.role === "user";
               const isRTL = /[\u0600-\u06FF]/.test(msg.content);
               return (
                 <div key={index} className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}>
                   {!isUser && (
-                    <div className="w-10 h-10 rounded-3xl bg-white border border-slate-200 flex items-center justify-center shadow-sm">
+                    <div className="w-10 h-10 rounded-3xl bg-card border border-border flex items-center justify-center shadow-sm">
                       <HealthBotIcon />
                     </div>
                   )}
@@ -205,14 +205,14 @@ export default function Chatbot() {
                     dir={isRTL ? "rtl" : "ltr"}
                     className={`max-w-[80%] px-4 py-3 rounded-3xl text-sm leading-6 ${
                       isUser
-                        ? "bg-cyan-600 text-white rounded-br-[6px] shadow-lg shadow-cyan-200/40"
-                        : "bg-white text-slate-900 border border-slate-200 shadow-sm"
+                        ? "bg-primary text-primary-foreground rounded-br-[6px] shadow-lg shadow-primary/20"
+                        : "bg-card text-foreground border border-border shadow-sm"
                     }`}
                     style={{ wordBreak: "break-word" }}
                     dangerouslySetInnerHTML={{ __html: formatMessage(msg.content) }}
                   />
                   {isUser && (
-                    <div className="w-10 h-10 rounded-3xl bg-cyan-100 text-cyan-700 flex items-center justify-center border border-cyan-200">
+                    <div className="w-10 h-10 rounded-3xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
                       <span className="text-xs font-semibold">U</span>
                     </div>
                   )}
@@ -222,19 +222,19 @@ export default function Chatbot() {
 
             {isLoading && (
               <div className="flex gap-3 justify-start">
-                <div className="w-10 h-10 rounded-3xl bg-white border border-slate-200 flex items-center justify-center shadow-sm">
+                <div className="w-10 h-10 rounded-3xl bg-card border border-border flex items-center justify-center shadow-sm">
                   <HealthBotIcon />
                 </div>
-                <div className="px-4 py-3 rounded-3xl bg-white border border-slate-200 shadow-sm flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin text-cyan-600" />
-                  <span className="text-slate-500 text-sm">Typing...</span>
+                <div className="px-4 py-3 rounded-3xl bg-card border border-border shadow-sm flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                  <span className="text-muted-foreground text-sm">Typing...</span>
                 </div>
               </div>
             )}
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="px-5 py-4 border-t border-slate-200 bg-slate-50">
+          <div className="px-5 py-4 border-t border-border bg-card">
             <div className="mb-3 flex flex-wrap gap-2">
               {[
                 "I'm a Patient",
@@ -246,7 +246,7 @@ export default function Chatbot() {
                   type="button"
                   key={q}
                   onClick={() => setInput(q)}
-                  className="text-[11px] px-3 py-1.5 rounded-full border border-cyan-200 text-cyan-700 hover:bg-cyan-50 transition-colors"
+                  className="text-[11px] px-3 py-1.5 rounded-full border border-primary/20 text-primary hover:bg-primary/10 transition-colors"
                 >
                   {q}
                 </button>
@@ -259,14 +259,14 @@ export default function Chatbot() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && sendMessage()}
                 placeholder="Ask HealthBot or ask in Urdu..."
-                className="flex-1 rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200 transition-all"
+                className="flex-1 rounded-3xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
               />
               {sttSupported && (
                 <button
                   type="button"
                   onClick={handleVoiceInput}
                   className={`w-12 h-12 rounded-3xl border ${
-                    isListening ? "border-rose-500 bg-rose-50 text-rose-600" : "border-slate-200 bg-white text-slate-600"
+                    isListening ? "border-rose-500 bg-rose-50 text-rose-600" : "border-border bg-background text-muted-foreground"
                   } flex items-center justify-center transition-colors`}
                   aria-label={isListening ? "Stop voice input" : "Start voice input"}
                 >
@@ -277,7 +277,7 @@ export default function Chatbot() {
                 <button
                   type="button"
                   onClick={() => speakText(messages[messages.length - 1]?.content || messages[0].content)}
-                  className="w-12 h-12 rounded-3xl border border-slate-200 bg-white text-slate-600 flex items-center justify-center transition-colors hover:bg-slate-100"
+                  className="w-12 h-12 rounded-3xl border border-border bg-background text-muted-foreground flex items-center justify-center transition-colors hover:bg-muted"
                   aria-label="Play last response"
                 >
                   <Volume2 size={18} />
@@ -287,7 +287,7 @@ export default function Chatbot() {
                 type="button"
                 onClick={sendMessage}
                 disabled={isLoading || !input.trim()}
-                className="w-12 h-12 rounded-3xl bg-cyan-600 text-white flex items-center justify-center hover:bg-cyan-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="w-12 h-12 rounded-3xl bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 aria-label="Send message"
               >
                 <Send size={18} />
